@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>折线统计图 - 互动教学</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><polygon points="2,2 22,10 14,14 10,22 2,2" fill="%23b5e3a2" stroke="%236b8e23" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="%23f9f2c7"/></svg>') 4 4, auto;
+        }
+        *:active, *:focus, button, canvas, div, span, input {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26"><polygon points="2,2 22,10 14,14 10,22 2,2" fill="%23b5e3a2" stroke="%236b8e23" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="%23f9f2c7"/></svg>') 4 4, auto !important;
+        }
+
+        body {
+            background: linear-gradient(145deg, #fff7e8 0%, #ffefcf 100%);
+            font-family: '黑体', 'Microsoft YaHei', '宋体', Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 25px 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            width: 100%;
+            background-color: #fffef7;
+            border-radius: 56px;
+            box-shadow: 0 20px 35px rgba(255, 140, 70, 0.2), 0 8px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #ffddb0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hero-title {
+            background: #ffbd87;
+            background-image: radial-gradient(circle at 10% 30%, rgba(255,235,190,0.6) 2%, transparent 2.5%);
+            background-size: 28px 28px;
+            padding: 20px 32px;
+            text-align: center;
+            border-bottom: 4px solid #ffa559;
+        }
+        .hero-title h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 3px;
+            color: #2d2b1f;
+            text-shadow: 3px 3px 0 #ffe0a3;
+            font-weight: 900;
+            font-family: '黑体', 'Microsoft YaHei', sans-serif;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 25px 30px 30px 30px;
+            background: #fff6ed;
+        }
+
+        .chart-area {
+            flex: 3;
+            min-width: 580px;
+            background: #ffffffdd;
+            background: linear-gradient(135deg, #ffffff, #fffaf2);
+            border-radius: 48px;
+            padding: 20px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.05);
+            border: 1px solid #ffd9ae;
+        }
+
+        .canvas-wrapper {
+            background: #FEF7E6;
+            border-radius: 32px;
+            padding: 16px;
+            box-shadow: inset 0 1px 6px #ffe0b5, 0 8px 18px rgba(0,0,0,0.05);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #FFFFF0;
+            border-radius: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .step-indicator {
+            margin-top: 15px;
+            background: #fcead3;
+            border-radius: 60px;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-weight: bold;
+            color: #000;
+            font-family: '黑体', sans-serif;
+            font-size: 14px;
+        }
+        .step-badge {
+            background: #ffdeae;
+            border-radius: 30px;
+            padding: 4px 16px;
+            font-size: 14px;
+        }
+        .current-step {
+            background: #6ec8e0;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .step-hint {
+            color: #4a2e1a;
+            background: #fff0dd;
+            border-radius: 30px;
+            padding: 4px 14px;
+            font-size: 13px;
+        }
+
+        .action-panel {
+            flex: 1.2;
+            min-width: 280px;
+            background: #fffae9;
+            border-radius: 48px;
+            padding: 20px 20px;
+            box-shadow: 0 8px 20px rgba(247, 167, 86, 0.2);
+            border: 1px solid #ffcf94;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            justify-content: center;
+        }
+
+        .cute-btn {
+            background: #ffe1b9;
+            border: none;
+            font-family: '黑体', monospace;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 10px 18px;
+            border-radius: 60px;
+            color: #3c2a1f;
+            transition: 0.2s;
+            box-shadow: 0 3px 0 #cb8b42;
+            letter-spacing: 1px;
+            flex: 1 0 auto;
+        }
+        .cute-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #cb8b42;
+        }
+        .cute-btn.active-mode {
+            background: #6ec8e0;
+            color: #1f3e3f;
+            box-shadow: 0 3px 0 #3f92a8;
+            border: 1px solid #fff3bf;
+        }
+        .cute-btn.reset-btn {
+            background: #ffaa88;
+        }
+        
+        .settings-group {
+            background: #fff1e2;
+            border-radius: 36px;
+            padding: 15px 18px;
+            border: 1px solid #ffce9e;
+        }
+        .settings-group h3 {
+            margin: 0 0 12px 0;
+            font-size: 1.2rem;
+            color: #c96f2a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: '黑体',sans-serif;
+        }
+        .setting-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .setting-row label {
+            width: 80px;
+            font-weight: bold;
+            color: #734c26;
+            font-size: 13px;
+        }
+        .setting-row input, .setting-row select {
+            flex: 1;
+            min-width: 70px;
+            padding: 6px 8px;
+            border-radius: 28px;
+            border: 1px solid #ffbc77;
+            background: #fff9ef;
+            font-family: '黑体', monospace;
+            font-weight: bold;
+        }
+        .apply-btn {
+            background: #56b4b0;
+            margin-top: 6px;
+            width: 100%;
+            box-shadow: 0 2px 0 #2f7a76;
+        }
+        .hint-text {
+            font-size: 12px;
+            color: #c96f2a;
+            margin-top: 8px;
+            text-align: center;
+        }
+        .info-badge {
+            font-size: 13px;
+            background: #fee1b9;
+            border-radius: 20px;
+            padding: 8px 12px;
+            text-align: center;
+            font-family: '黑体',sans-serif;
+            color: #000;
+        }
+
+        .custom-label-dialog {
+            position: fixed;
+            background: #fffef0;
+            border-radius: 40px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            padding: 6px 12px;
+            z-index: 1000;
+            border: 1px solid #ffbc77;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            backdrop-filter: blur(4px);
+            width: auto;
+            white-space: nowrap;
+        }
+        .custom-label-dialog input {
+            border: 1px solid #ffa559;
+            border-radius: 30px;
+            padding: 4px 10px;
+            font-family: '黑体', monospace;
+            font-size: 13px;
+            width: 110px;
+            outline: none;
+        }
+        .custom-label-dialog button {
+            background: #6ec8e0;
+            border: none;
+            border-radius: 30px;
+            padding: 4px 14px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            color: #1f3e3f;
+            white-space: nowrap;
+        }
+        .splash-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .splash-particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: splashAnim 0.6s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes splashAnim {
+            0% {
+                transform: scale(0.3) translate(0, 0);
+                opacity: 0.9;
+            }
+            100% {
+                transform: scale(0.9) translate(var(--dx), var(--dy));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero-title">
+        <h1>折线统计图</h1>
+    </div>
+    <div class="dashboard">
+        <div class="chart-area">
+            <div class="canvas-wrapper">
+                <canvas id="mainCanvas" width="900" height="550" style="width:100%; height:auto; max-width:900px; aspect-ratio:900/550"></canvas>
+            </div>
+            <div class="step-indicator" id="stepIndicator">
+                <span>📌 当前步骤：</span>
+                <span id="stepName" class="step-badge current-step">📍 描点模式</span>
+                <span id="stepHint" class="step-hint">💡 在纵轴刻度线上任意位置均可点击，每条刻度线仅一个点。</span>
+            </div>
+        </div>
+        <div class="action-panel">
+            <div class="btn-group">
+                <button id="settingsBtn" class="cute-btn">⚙️ 图表设置</button>
+                <button id="pointBtn" class="cute-btn active-mode">📍 描点</button>
+                <button id="lineBtn" class="cute-btn">🔗 连线</button>
+                <button id="labelBtn" class="cute-btn">🏷️ 标数据</button>
+            </div>
+            <div class="btn-group">
+                <button id="undoBtn" class="cute-btn">↩️ 撤销上一步</button>
+                <button id="clearBtn" class="cute-btn reset-btn">🗑️ 清空重置</button>
+                <button id="saveDataBtn" class="cute-btn" style="background:#b0d9b1;">💾 保存数据</button>
+                <button id="loadDataBtn" class="cute-btn" style="background:#ffd966;">📂 加载数据</button>
+            </div>
+            <div id="settingsModal" style="display: none;" class="settings-group">
+                <h3>📐 图表与坐标轴设置</h3>
+                <div class="setting-row">
+                    <label>统计图标题:</label>
+                    <input type="text" id="chartTitle" placeholder="折线统计图" value="折线统计图">
+                </div>
+                <div class="setting-row">
+                    <label>X轴名称:</label>
+                    <input type="text" id="xAxisName" placeholder="例如: 月份" value="月份">
+                </div>
+                <div class="setting-row">
+                    <label>Y轴名称:</label>
+                    <input type="text" id="yAxisName" placeholder="例如: 数量" value="数量">
+                </div>
+                <div class="setting-row">
+                    <label>X轴标签:</label>
+                    <input type="text" id="xLabels" placeholder="用英文逗号分隔" value="一月,二月,三月,四月,五月,六月,七月">
+                </div>
+                <div class="setting-row">
+                    <label>Y轴格数:</label>
+                    <input type="number" id="yGridCount" min="4" max="10" value="6">
+                </div>
+                <div class="setting-row">
+                    <label>Y轴步长:</label>
+                    <input type="number" id="yStep" step="1" value="20">
+                </div>
+                <div class="setting-row">
+                    <label>Y轴起始值:</label>
+                    <input type="number" id="yStart" value="0">
+                </div>
+                <div class="hint-text">
+                    💡 x轴标签需要使用英文逗号分隔
+                </div>
+                <button id="applySettingsBtn" class="cute-btn apply-btn">✅ 应用设置并重绘</button>
+            </div>
+            <div class="info-badge">
+                ✨ 描点→连线→标数  三步完成统计图
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 900;
+        canvas.height = 550;
+
+        // ---------- 数据模型 ----------
+        let points = [];
+        let lines = [];
+        let nextId = 1;
+        
+        // 历史记录
+        let historyStack = [];
+        let currentHistoryIndex = -1;
+        
+        function pushToHistory() {
+            const snapshot = {
+                points: points.map(p => ({ ...p })),
+                lines: lines.map(l => ({ ...l }))
+            };
+            historyStack = historyStack.slice(0, currentHistoryIndex + 1);
+            historyStack.push(snapshot);
+            currentHistoryIndex = historyStack.length - 1;
+            if (historyStack.length > 50) {
+                historyStack.shift();
+                currentHistoryIndex--;
+            }
+        }
+        
+        function restoreFromHistory(index) {
+            if (index < 0 || index >= historyStack.length) return false;
+            const snapshot = historyStack[index];
+            points = snapshot.points.map(p => ({ ...p }));
+            lines = snapshot.lines.map(l => ({ ...l }));
+            points.forEach(p => {
+                p.pixelX = getXPosByDataIndex(p.dataIndex);
+                p.pixelY = getYPosFromValue(p.yValue);
+            });
+            currentHistoryIndex = index;
+            drawAll();
+            return true;
+        }
+        
+        function undo() {
+            if (currentHistoryIndex > 0) {
+                restoreFromHistory(currentHistoryIndex - 1);
+                pendingLineStartPoint = null;
+            } else {
+                alert("没有更早的操作了");
+            }
+        }
+        
+        function clearAll() {
+            points = [];
+            lines = [];
+            nextId = 1;
+            pendingLineStartPoint = null;
+            historyStack = [];
+            pushToHistory();
+            drawAll();
+        }
+        
+        function recordChange() {
+            pushToHistory();
+        }
+        
+        // ---------- 全局变量 ----------
+        let currentMode = 'point';
+        let pendingLineStartPoint = null;
+        
+        let chartSettings = {
+            title: "折线统计图",
+            xName: "月份",
+            yName: "数量",
+            yGridTotal: 6,
+            yStep: 20,
+            yStart: 0,
+            xLabels: ["一月","二月","三月","四月","五月","六月","七月"]
+        };
+        
+        function getXGridTotal() {
+            return chartSettings.xLabels.length + 2;
+        }
+        
+        const margin = { top: 80, right: 55, bottom: 70, left: 80 };
+        let plotWidth = canvas.width - margin.left - margin.right;
+        let plotHeight = canvas.height - margin.top - margin.bottom;
+        
+        function getXPosByDataIndex(dataIndex) {
+            let xGridTotal = getXGridTotal();
+            let stepX = plotWidth / (xGridTotal - 1);
+            let lineIdx = dataIndex + 1;
+            return margin.left + lineIdx * stepX;
+        }
+        
+        function getYPosFromValue(rawValue) {
+            let minY = chartSettings.yStart;
+            let maxY = chartSettings.yStart + chartSettings.yStep * (chartSettings.yGridTotal - 1);
+            if (maxY === minY) return margin.top + plotHeight / 2;
+            let ratio = (rawValue - minY) / (maxY - minY);
+            let y = margin.top + plotHeight * (1 - Math.min(1, Math.max(0, ratio)));
+            return y;
+        }
+        
+        function findDataIndexFromClick(clickX, clickY) {
+            let validIndices = [];
+            for (let i = 0; i < chartSettings.xLabels.length; i++) validIndices.push(i);
+            if (validIndices.length === 0) return null;
+            let minDistX = 30;
+            let bestDataIndex = null;
+            let targetX = 0;
+            for (let idx of validIndices) {
+                let xPos = getXPosByDataIndex(idx);
+                let dx = Math.abs(xPos - clickX);
+                if (dx < minDistX) {
+                    minDistX = dx;
+                    bestDataIndex = idx;
+                    targetX = xPos;
+                }
+            }
+            if (bestDataIndex === null) return null;
+            let minY = chartSettings.yStart;
+            let maxY = chartSettings.yStart + chartSettings.yStep * (chartSettings.yGridTotal - 1);
+            let t = (margin.top + plotHeight - clickY) / plotHeight;
+            let yValue = minY + t * (maxY - minY);
+            yValue = Math.min(maxY, Math.max(minY, yValue));
+            yValue = Math.round(yValue * 10) / 10;
+            return { dataIndex: bestDataIndex, yValue: yValue, xPixel: targetX, yPixel: getYPosFromValue(yValue) };
+        }
+        
+        function isPointExistsOnColumn(dataIndex) {
+            return points.some(p => p.dataIndex === dataIndex);
+        }
+        
+        function addPoint(dataIndex, yValue, xPixel, yPixel) {
+            if (isPointExistsOnColumn(dataIndex)) {
+                alert("每条纵轴只能描一个点！如需修改请先撤销或清空。");
+                return false;
+            }
+            let newPoint = {
+                id: nextId++,
+                dataIndex: dataIndex,
+                yValue: yValue,
+                pixelX: xPixel,
+                pixelY: yPixel,
+                label: ""
+            };
+            points.push(newPoint);
+            points.sort((a,b) => a.dataIndex - b.dataIndex);
+            recordChange();
+            drawAll();
+            return true;
+        }
+        
+        function addLine(pointA, pointB) {
+            if (pointA.id === pointB.id) return false;
+            let exists = lines.some(l => (l.fromId === pointA.id && l.toId === pointB.id) || (l.fromId === pointB.id && l.toId === pointA.id));
+            if (exists) return false;
+            lines.push({ fromId: pointA.id, toId: pointB.id });
+            recordChange();
+            drawAll();
+            return true;
+        }
+        
+        function setPointLabel(point, newLabel) {
+            point.label = newLabel;
+            recordChange();
+            drawAll();
+        }
+        
+        // ---------- 绘图函数 ----------
+        function drawArrowhead(ctx, fromX, fromY, toX, toY, size = 10) {
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            const arrowX = toX;
+            const arrowY = toY;
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - size * Math.cos(angle - Math.PI/6), arrowY - size * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(arrowX - size * Math.cos(angle + Math.PI/6), arrowY - size * Math.sin(angle + Math.PI/6));
+            ctx.fillStyle = "#5a3e28";
+            ctx.fill();
+        }
+        
+        function drawGridAndAxes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            let xGridTotal = getXGridTotal();
+            let stepX = plotWidth / (xGridTotal - 1);
+            ctx.strokeStyle = "#D2B48C";
+            ctx.lineWidth = 1;
+            ctx.font = "14px '黑体'";
+            ctx.fillStyle = "#000000";
+            // 纵向网格线
+            for (let i = 0; i < xGridTotal; i++) {
+                let x = margin.left + i * stepX;
+                ctx.beginPath();
+                ctx.moveTo(x, margin.top);
+                ctx.lineTo(x, margin.top + plotHeight);
+                ctx.stroke();
+            }
+            // 水平网格线
+            let minY = chartSettings.yStart;
+            let maxY = chartSettings.yStart + chartSettings.yStep * (chartSettings.yGridTotal - 1);
+            for (let j = 0; j < chartSettings.yGridTotal; j++) {
+                let yValue = minY + j * chartSettings.yStep;
+                let y = getYPosFromValue(yValue);
+                ctx.beginPath();
+                ctx.moveTo(margin.left, y);
+                ctx.lineTo(margin.left + plotWidth, y);
+                ctx.stroke();
+                ctx.fillStyle = "#000000";
+                ctx.fillText(Math.round(yValue), margin.left-32, y+4);
+            }
+            // X轴主线
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top + plotHeight);
+            ctx.lineTo(margin.left + plotWidth + 18, margin.top + plotHeight);
+            ctx.strokeStyle = "#5a3e28";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            drawArrowhead(ctx, margin.left + plotWidth + 8, margin.top + plotHeight, margin.left + plotWidth + 20, margin.top + plotHeight, 10);
+            // Y轴主线
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top + plotHeight);
+            ctx.lineTo(margin.left, margin.top - 12);
+            ctx.stroke();
+            drawArrowhead(ctx, margin.left, margin.top - 2, margin.left, margin.top - 14, 10);
+            // X轴标签
+            ctx.font = "14px '黑体'";
+            ctx.fillStyle = "#000000";
+            for (let i = 1; i <= chartSettings.xLabels.length; i++) {
+                let x = margin.left + i * stepX;
+                ctx.fillText(chartSettings.xLabels[i-1], x-12, margin.top + plotHeight + 24);
+            }
+            // 轴名称
+            ctx.fillText(chartSettings.xName, margin.left+plotWidth+22, margin.top+plotHeight+8);
+            ctx.fillText(chartSettings.yName, margin.left-10, margin.top-22);
+            // 标题
+            if (chartSettings.title) {
+                ctx.font = "bold 22px '黑体'";
+                ctx.fillStyle = "#000000";
+                ctx.textAlign = "center";
+                ctx.fillText(chartSettings.title, canvas.width/2, margin.top - 28);
+                ctx.textAlign = "left";
+            }
+        }
+        
+        function drawPointsAndLines() {
+            // 连线
+            for (let line of lines) {
+                let fromP = points.find(p => p.id === line.fromId);
+                let toP = points.find(p => p.id === line.toId);
+                if (fromP && toP) {
+                    ctx.beginPath();
+                    ctx.moveTo(fromP.pixelX, fromP.pixelY);
+                    ctx.lineTo(toP.pixelX, toP.pixelY);
+                    ctx.strokeStyle = "#f07c2e";
+                    ctx.lineWidth = 3.5;
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc((fromP.pixelX+toP.pixelX)/2, (fromP.pixelY+toP.pixelY)/2, 4, 0, 2*Math.PI);
+                    ctx.fillStyle = "#ffaa55";
+                    ctx.fill();
+                }
+            }
+            // 描点与标签
+            for (let p of points) {
+                ctx.beginPath();
+                ctx.arc(p.pixelX, p.pixelY, 9, 0, 2*Math.PI);
+                ctx.fillStyle = "#ffc107";
+                ctx.fill();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                if (p.label && p.label !== "") {
+                    // 字体：新罗马，黑色，小四（12px），位置在圆点的右上方
+                    ctx.font = "12px 'Times New Roman', serif";
+                    ctx.fillStyle = "#000000";
+                    ctx.textAlign = "left";
+                    ctx.fillText(p.label, p.pixelX + 8, p.pixelY - 8);
+                }
+            }
+            if (currentMode === 'line' && pendingLineStartPoint) {
+                ctx.beginPath();
+                ctx.arc(pendingLineStartPoint.pixelX, pendingLineStartPoint.pixelY, 14, 0, 2*Math.PI);
+                ctx.strokeStyle = "#ff4444";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+        
+        function drawAll() {
+            drawGridAndAxes();
+            drawPointsAndLines();
+        }
+        
+        // ---------- 特效与对话框 ----------
+        function createSplash(x, y) {
+            const container = document.createElement('div');
+            container.className = 'splash-container';
+            document.body.appendChild(container);
+            // 颜色改为橙色、黄色、蓝色
+            const colors = ['#FF8C42', '#FFD966', '#3A86FF', '#F4A261', '#2A9D8F'];
+            const particleCount = 16;   // 增加粒子数量使特效更明显，扩大范围
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'splash-particle';
+                const angle = Math.random() * Math.PI * 2;
+                // 扩大范围：速度加倍，位移范围更大
+                const speed = 2.5 + Math.random() * 7;
+                const dx = Math.cos(angle) * speed * (Math.random() * 24 + 12);
+                const dy = Math.sin(angle) * speed * (Math.random() * 24 + 12);
+                particle.style.setProperty('--dx', dx + 'px');
+                particle.style.setProperty('--dy', dy + 'px');
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = (x - 5) + 'px';
+                particle.style.top = (y - 5) + 'px';
+                container.appendChild(particle);
+                setTimeout(() => particle.remove(), 550);
+            }
+            setTimeout(() => container.remove(), 650);
+        }
+        
+        let activeDialog = null;
+        function showLabelDialog(point) {
+            if (activeDialog) activeDialog.remove();
+            const dialog = document.createElement('div');
+            dialog.className = 'custom-label-dialog';
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const pointAbsX = rect.left + (point.pixelX / scaleX);
+            const pointAbsY = rect.top + (point.pixelY / scaleY);
+            // 对话框显示在点的右上方附近，避免遮挡
+            let dialogTop = pointAbsY - 50;
+            let dialogLeft = pointAbsX + 15;
+            if (dialogLeft + 140 > window.innerWidth) dialogLeft = pointAbsX - 150;
+            if (dialogTop < 10) dialogTop = 10;
+            dialog.style.left = dialogLeft + 'px';
+            dialog.style.top = dialogTop + 'px';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = point.label || '';
+            input.placeholder = '数值';
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = '确定';
+            confirmBtn.onclick = () => {
+                const newVal = input.value.trim();
+                setPointLabel(point, newVal);
+                dialog.remove();
+                activeDialog = null;
+            };
+            dialog.appendChild(input);
+            dialog.appendChild(confirmBtn);
+            document.body.appendChild(dialog);
+            activeDialog = dialog;
+            const closeHandler = (e) => {
+                if (!dialog.contains(e.target)) {
+                    dialog.remove();
+                    activeDialog = null;
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeHandler), 10);
+        }
+        
+        document.body.addEventListener('click', (e) => {
+            createSplash(e.clientX, e.clientY);
+        });
+        
+        // ---------- Canvas点击交互 ----------
+        function onCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let mouseX = (e.clientX - rect.left) * scaleX;
+            let mouseY = (e.clientY - rect.top) * scaleY;
+            
+            if (currentMode === 'point') {
+                let result = findDataIndexFromClick(mouseX, mouseY);
+                if (result && result.dataIndex !== undefined) {
+                    addPoint(result.dataIndex, result.yValue, result.xPixel, result.yPixel);
+                }
+            } 
+            else if (currentMode === 'line') {
+                let clickedPoint = null;
+                for (let p of points) {
+                    let dx = p.pixelX - mouseX;
+                    let dy = p.pixelY - mouseY;
+                    if (Math.hypot(dx, dy) <= 12) {
+                        clickedPoint = p;
+                        break;
+                    }
+                }
+                if (clickedPoint) {
+                    if (pendingLineStartPoint === null) {
+                        pendingLineStartPoint = clickedPoint;
+                        drawAll();
+                    } else {
+                        if (pendingLineStartPoint.id !== clickedPoint.id) {
+                            addLine(pendingLineStartPoint, clickedPoint);
+                        }
+                        pendingLineStartPoint = null;
+                        drawAll();
+                    }
+                } else {
+                    if (pendingLineStartPoint) pendingLineStartPoint = null;
+                    drawAll();
+                }
+            }
+            else if (currentMode === 'label') {
+                let clickedPoint = null;
+                for (let p of points) {
+                    if (Math.hypot(p.pixelX - mouseX, p.pixelY - mouseY) <= 12) {
+                        clickedPoint = p;
+                        break;
+                    }
+                }
+                if (clickedPoint) {
+                    showLabelDialog(clickedPoint);
+                }
+            }
+        }
+        
+        // ------- 模式切换与UI -------
+        function setMode(mode) {
+            currentMode = mode;
+            pendingLineStartPoint = null;
+            document.getElementById('pointBtn').classList.toggle('active-mode', mode === 'point');
+            document.getElementById('lineBtn').classList.toggle('active-mode', mode === 'line');
+            document.getElementById('labelBtn').classList.toggle('active-mode', mode === 'label');
+            let stepText = mode === 'point' ? '📍 描点模式' : (mode === 'line' ? '🔗 连线模式' : '🏷️ 标数据模式');
+            document.getElementById('stepName').innerHTML = stepText;
+            let hintMsg = "";
+            if (mode === 'point') hintMsg = "💡 在纵轴刻度线上任意位置均可点击，每条刻度线仅一个点。";
+            else if (mode === 'line') hintMsg = "💡 依次点击两个橙色圆点生成连线，建议按从左到右的顺序连接。";
+            else hintMsg = "💡 点击数据点弹出输入框，输入数值后点确定保存。";
+            document.getElementById('stepHint').innerHTML = hintMsg;
+            drawAll();
+        }
+        
+        function syncInputsWithSettings() {
+            document.getElementById('chartTitle').value = chartSettings.title;
+            document.getElementById('xAxisName').value = chartSettings.xName;
+            document.getElementById('yAxisName').value = chartSettings.yName;
+            document.getElementById('xLabels').value = chartSettings.xLabels.join(',');
+            document.getElementById('yGridCount').value = chartSettings.yGridTotal;
+            document.getElementById('yStep').value = chartSettings.yStep;
+            document.getElementById('yStart').value = chartSettings.yStart;
+        }
+        
+        function applyChartSettings() {
+            chartSettings.title = document.getElementById('chartTitle').value || "折线统计图";
+            chartSettings.xName = document.getElementById('xAxisName').value || "X轴";
+            chartSettings.yName = document.getElementById('yAxisName').value || "Y轴";
+            chartSettings.yGridTotal = Math.min(10, Math.max(4, parseInt(document.getElementById('yGridCount').value) || 5));
+            chartSettings.yStep = parseFloat(document.getElementById('yStep').value) || 10;
+            chartSettings.yStart = parseFloat(document.getElementById('yStart').value) || 0;
+            let xLabelsRaw = document.getElementById('xLabels').value;
+            let arr = xLabelsRaw.split(',').map(s=>s.trim()).filter(s=>s);
+            if (arr.length === 0) arr = ["A","B","C","D","E"];
+            chartSettings.xLabels = arr;
+            points = [];
+            lines = [];
+            pendingLineStartPoint = null;
+            nextId = 1;
+            historyStack = [];
+            pushToHistory();
+            drawAll();
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+        
+        function initEvent() {
+            canvas.addEventListener('click', onCanvasClick);
+            document.getElementById('pointBtn').addEventListener('click', () => setMode('point'));
+            document.getElementById('lineBtn').addEventListener('click', () => setMode('line'));
+            document.getElementById('labelBtn').addEventListener('click', () => setMode('label'));
+            document.getElementById('undoBtn').addEventListener('click', () => undo());
+            document.getElementById('clearBtn').addEventListener('click', () => clearAll());
+            document.getElementById('saveDataBtn').addEventListener('click', () => {
+                const dataToSave = {
+                    points: points.map(p => ({ dataIndex: p.dataIndex, yValue: p.yValue, label: p.label })),
+                    lines: lines,
+                    settings: chartSettings
+                };
+                localStorage.setItem('lineChartData', JSON.stringify(dataToSave));
+                alert("当前图表数据已保存！");
+            });
+            document.getElementById('loadDataBtn').addEventListener('click', () => {
+                const raw = localStorage.getItem('lineChartData');
+                if (!raw) { alert("无保存数据"); return; }
+                try {
+                    const saved = JSON.parse(raw);
+                    points = saved.points.map((pt) => ({
+                        id: nextId++,
+                        dataIndex: pt.dataIndex,
+                        yValue: pt.yValue,
+                        label: pt.label || "",
+                        pixelX: getXPosByDataIndex(pt.dataIndex),
+                        pixelY: getYPosFromValue(pt.yValue)
+                    }));
+                    lines = saved.lines || [];
+                    if (saved.settings) {
+                        chartSettings = { ...chartSettings, ...saved.settings };
+                        syncInputsWithSettings();
+                        points.forEach(p => {
+                            p.pixelX = getXPosByDataIndex(p.dataIndex);
+                            p.pixelY = getYPosFromValue(p.yValue);
+                        });
+                    }
+                    pendingLineStartPoint = null;
+                    historyStack = [];
+                    pushToHistory();
+                    drawAll();
+                    alert("加载成功！");
+                } catch(e) { alert("读取失败"); }
+            });
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                let modal = document.getElementById('settingsModal');
+                if (modal.style.display === 'none') {
+                    syncInputsWithSettings();
+                    modal.style.display = 'block';
+                } else modal.style.display = 'none';
+            });
+            document.getElementById('applySettingsBtn').addEventListener('click', applyChartSettings);
+            setMode('point');
+        }
+        
+        pushToHistory();
+        initEvent();
+        drawAll();
+    })();
+</script>
+</body>
+</html>
