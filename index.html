@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 关键：允许双指缩放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>折线统计图 - 互动教学</title>
     <style>
@@ -25,10 +26,10 @@
             padding: 20px;
         }
 
-        /* 响应式容器 */
+        /* 主容器：相对单位 + 最大宽度限制 */
         .container {
+            width: 95%;
             max-width: 1400px;
-            width: 100%;
             background-color: #fffef7;
             border-radius: 48px;
             box-shadow: 0 20px 35px rgba(255, 140, 70, 0.2), 0 8px 12px rgba(0,0,0,0.05);
@@ -65,10 +66,10 @@
             background: #fff6ed;
         }
 
-        /* 左侧图表区 - 自动伸缩 */
+        /* 左侧图表区：弹性宽度，自适应 */
         .chart-area {
             flex: 3;
-            min-width: 300px;
+            min-width: 280px;
             background: #ffffffdd;
             background: linear-gradient(135deg, #ffffff, #fffaf2);
             border-radius: 40px;
@@ -78,7 +79,7 @@
         }
 
         .canvas-wrapper {
-            background: #FEF7E6;   /* 淡黄色方框 */
+            background: #FEF7E6;
             border-radius: 28px;
             padding: 12px;
             box-shadow: inset 0 1px 6px #ffe0b5, 0 8px 18px rgba(0,0,0,0.05);
@@ -93,7 +94,7 @@
             background: #FFFFF0;
             border-radius: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            /* 保持canvas固有宽高比 900/550 = 1.636 */
+            /* 保持画布原始比例 900/550 = 1.636，便于坐标计算 */
             aspect-ratio: 900 / 550;
         }
 
@@ -131,10 +132,11 @@
             font-size: clamp(11px, 2.8vw, 13px);
         }
 
-        /* 右侧操作区 - 灵活宽度 */
+        /* 右侧操作区：弹性宽度，限制最大宽度避免过大 */
         .action-panel {
             flex: 1.2;
             min-width: 260px;
+            max-width: 360px;
             background: #fffae9;
             border-radius: 40px;
             padding: 20px 18px;
@@ -167,7 +169,7 @@
             flex: 1 0 auto;
             white-space: nowrap;
         }
-        /* 窄屏幕时允许文字换行 */
+        /* 窄屏幕时允许按钮文字换行 */
         @media (max-width: 700px) {
             .cute-btn {
                 white-space: normal;
@@ -179,6 +181,7 @@
             }
             .action-panel {
                 padding: 16px;
+                max-width: 100%;
             }
         }
         .cute-btn:active {
@@ -256,7 +259,7 @@
             color: #000;
         }
 
-        /* 自定义标数据对话框 (不变，但确保不超出屏幕) */
+        /* 标数据对话框 (位置自适应) */
         .custom-label-dialog {
             position: fixed;
             background: #fffef0;
@@ -291,7 +294,7 @@
             color: #1f3e3f;
         }
 
-        /* 水花特效容器 */
+        /* 点击水花特效 */
         .splash-container {
             position: fixed;
             top: 0;
@@ -371,7 +374,7 @@
                 </div>
                 <div class="setting-row">
                     <label>Y轴格数:</label>
-                    <input type="number" id="yGridCount" min="4" max="20" value="6">
+                    <input type="number" id="yGridCount" min="4" max="20" value="7">
                 </div>
                 <div class="setting-row">
                     <label>Y轴步长:</label>
@@ -400,7 +403,7 @@
         canvas.width = 900;
         canvas.height = 550;
 
-        // 数据模型
+        // ---------- 数据模型 ----------
         let points = [];
         let lines = [];
         let nextId = 1;
@@ -460,16 +463,16 @@
             pushToHistory();
         }
         
-        // 全局变量
+        // ---------- 全局变量 ----------
         let currentMode = 'point';
         let pendingLineStartPoint = null;
         
-        // 修改默认Y轴参数：格数6，步长200，起始0
+        // 修改默认Y轴参数：格数7，步长200，起始0
         let chartSettings = {
             title: "2020—2025年重庆红岩革命历史博物馆参观人数统计图",
             xName: "年份",
             yName: "人/万人次",
-            yGridTotal: 6,
+            yGridTotal: 7,
             yStep: 200,
             yStart: 0,
             xLabels: ["2020","2021","2022","2023","2024","2025"]
@@ -598,7 +601,7 @@
             drawAll();
         }
         
-        // 绘图函数
+        // ---------- 绘图函数 ----------
         function drawArrowhead(ctx, fromX, fromY, toX, toY, size = 10) {
             const angle = Math.atan2(toY - fromY, toX - fromX);
             const arrowX = toX;
@@ -725,7 +728,7 @@
             drawPointsAndLines();
         }
         
-        // 特效与对话框
+        // ---------- 特效与对话框 ----------
         function createSplash(x, y) {
             const container = document.createElement('div');
             container.className = 'splash-container';
@@ -796,7 +799,7 @@
             createSplash(e.clientX, e.clientY);
         });
         
-        // Canvas交互
+        // ---------- Canvas交互（支持缩放后的坐标映射）----------
         function onCanvasClick(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -829,7 +832,7 @@
                         pendingLineStartPoint = null;
                         drawAll();
                         if (!success) {
-                            // alert已显示
+                            // 提示已在addLine中显示
                         }
                     }
                 } else {
@@ -853,6 +856,7 @@
             }
         }
         
+        // ---------- 模式切换与UI ----------
         function setMode(mode) {
             currentMode = mode;
             pendingLineStartPoint = null;
@@ -883,7 +887,7 @@
             chartSettings.title = document.getElementById('chartTitle').value || "折线统计图";
             chartSettings.xName = document.getElementById('xAxisName').value || "X轴";
             chartSettings.yName = document.getElementById('yAxisName').value || "Y轴";
-            chartSettings.yGridTotal = Math.min(20, Math.max(4, parseInt(document.getElementById('yGridCount').value) || 6));
+            chartSettings.yGridTotal = Math.min(20, Math.max(4, parseInt(document.getElementById('yGridCount').value) || 7));
             chartSettings.yStep = parseFloat(document.getElementById('yStep').value) || 200;
             chartSettings.yStart = parseFloat(document.getElementById('yStart').value) || 0;
             let xLabelsRaw = document.getElementById('xLabels').value;
